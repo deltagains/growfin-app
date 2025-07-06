@@ -5,7 +5,6 @@ import sqlite3
 from config import DB_PATH
 from decimal import Decimal, ROUND_HALF_UP
 from helpers import fetch_table_data, calculate_greeks, sanitize, get_last_expiry_date
-from flask_cors import CORS
 from config import DB_PATH
 from sqlalchemy import create_engine, MetaData, Table, insert, text
 from datetime import datetime
@@ -19,14 +18,6 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='None',   # Use 'None' for cross-origin cookies
     SESSION_COOKIE_SECURE=True,       # True is required when SAMESITE='None' (and you're using HTTPS)
-)
-
-CORS(
-    app,
-    resources={r"/*": {"origins": "*"}},
-    supports_credentials=True,
-    allow_headers=["*"],
-    methods=["GET", "POST", "OPTIONS"]
 )
 
 
