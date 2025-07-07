@@ -8,3 +8,4 @@ SQLAlchemy
 pandas
 pyotp
 logzero
+websocket
