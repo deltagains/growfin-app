@@ -1,7 +1,7 @@
-mibian==0.1.3
-Flask==2.3.3
-requests==2.31.0
-gunicorn==21.2.0
-scipy==1.7.3
-smartapi-python==1.4.8
-SQLAlchemy==1.4.36
+mibian
+Flask
+requests
+gunicorn
+scipy>=1.11.4
+smartapi-python
+SQLAlchemy
