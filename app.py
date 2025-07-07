@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 import requests
 import importlib
 import sqlite3
@@ -9,6 +9,7 @@ from config import DB_PATH
 from sqlalchemy import create_engine, MetaData, Table, insert, text
 from datetime import datetime
 import re
+import os
 #from flask import escape
 
 app = Flask(__name__)
@@ -1241,6 +1242,14 @@ def testing123():
             "status": "error",
             "error": str(e)
         }), 500
+
+@app.route('/download-db')
+def download_db():
+    db_path = 'trading.db'  # Replace with actual DB file name or full path
+    if os.path.exists(db_path):
+        return send_file(db_path, as_attachment=True)
+    else:
+        return {"error": "Database file not found"}, 404
 
 if __name__ == "__main__":
     app.run(debug=True)
