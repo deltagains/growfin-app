@@ -5,3 +5,4 @@ gunicorn
 scipy>=1.11.4
 smartapi-python
 SQLAlchemy
+pandas
