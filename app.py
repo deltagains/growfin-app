@@ -16,8 +16,8 @@ app = Flask(__name__)
 app.secret_key = "secretkey"
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='None',   # Use 'None' for cross-origin cookies
-    SESSION_COOKIE_SECURE=True,       # True is required when SAMESITE='None' (and you're using HTTPS)
+    SESSION_COOKIE_SAMESITE='None',   # Use 'None' for cross-origin co
+    SESSION_COOKIE_SECURE=True,       # True is required when SAMESITE='None' (and you using HTTPS)
 )
 
 
