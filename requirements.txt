@@ -7,3 +7,4 @@ smartapi-python
 SQLAlchemy
 pandas
 pyotp
+logzero
