@@ -1,7 +1,9 @@
 services:
   - type: web
-    name: flask-test-app
+    name: growfin-app
     env: python
-    buildCommand: ""
-    startCommand: gunicorn app:app
     plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --timeout 120 --workers 4 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PORT
