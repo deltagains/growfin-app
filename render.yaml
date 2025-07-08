@@ -7,4 +7,4 @@ services:
     startCommand: gunicorn app:app --timeout 120 --workers 4 --bind 0.0.0.0:$PORT
     envVars:
       - key: PORT
-	value: 10000
+        value: 10000  # or leave blank and let Render assign one
