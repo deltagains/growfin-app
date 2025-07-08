@@ -1,19 +1,19 @@
 import datetime
 import mibian
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 def DaysToExpiry(expiry):
-    mons = {'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6, 'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12}
+    mons = {'JAN': 1, 'FEB': 2, 'MAR': 3, 'APR': 4, 'MAY': 5, 'JUN': 6,
+            'JUL': 7, 'AUG': 8, 'SEP': 9, 'OCT': 10, 'NOV': 11, 'DEC': 12}
 
     year = int(expiry[5:9])
     mon = mons[expiry[2:5]]
     day = int(expiry[0:2])
-    today = datetime.date.today()
-    expiryday = datetime.date(year, mon, day)
+    today = date.today()
+    expiryday = date(year, mon, day)
     diff = expiryday - today
-    days_to_expiry = diff.days
+    return diff.days
 
-    return(days_to_expiry)
 
 def calculate_greeks(ltp_underlying, strike, days_to_expiry, ltp_option, pe_ce):
 
