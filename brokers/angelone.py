@@ -82,6 +82,7 @@ def stock_holdings():
 
 def insert_positions():
     try:
+        # Step 1: Login and fetch data
         obj, username = login()
         ds = obj.position()
         logout(obj, username)
@@ -90,17 +91,9 @@ def insert_positions():
         if position_data.empty:
             return jsonify({"message": "No position data found."}), 200
 
-        # Connect using sqlite3
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        # Clear existing records
-        cursor.execute("DELETE FROM optionpositions")
-
-        # Cache underlying LTPs
+        # Step 2: Prepare LTP data before DB connection
         symbols = list(set(pos['symbolname'] for pos in position_data['data']))
         ltp_cache = {}
-
         for symbol in symbols:
             try:
                 payload = {'symbol_name': symbol}
@@ -111,7 +104,7 @@ def insert_positions():
             except:
                 ltp_cache[symbol] = 0.0
 
-        # Prepare data for insertion
+        # Step 3: Prepare data for DB insert
         insert_values = []
         for pos in position_data['data']:
             symbol = pos.get('symbolname', '')
@@ -145,7 +138,13 @@ def insert_positions():
                 implied_vol
             )))
 
-        # Run batch insert
+        # Step 4: Connect to DB with WAL mode and insert
+        conn = sqlite3.connect(DB_PATH, timeout=10, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode=WAL;")
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM optionpositions")
+
         cursor.executemany("""
             INSERT INTO optionpositions (
                 underlying_ltp, strikeprice, optiontype, totalsellavgprice,
@@ -157,10 +156,12 @@ def insert_positions():
 
         conn.commit()
         conn.close()
+
         return jsonify({"message": f"{len(insert_values)} option positions inserted successfully."}), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 def get_trade_book():
