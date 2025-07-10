@@ -1251,6 +1251,37 @@ def download_db():
     else:
         return {"error": "Database file not found"}, 404
 
+
+@app.route('/get_table_data', methods=['GET'])
+def get_table_data():
+    table_name = request.args.get('table')
+    
+    if not table_name:
+        return jsonify({"error": "Missing 'table' query parameter"}), 400
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row  # To return dict-like rows
+        cursor = conn.cursor()
+
+        # Basic validation to avoid SQL injection via table name
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?;", (table_name,))
+        if not cursor.fetchone():
+            return jsonify({"error": f"Table '{table_name}' does not exist."}), 404
+
+        cursor.execute(f"SELECT * FROM {table_name}")
+        rows = cursor.fetchall()
+        data = [dict(row) for row in rows]
+
+        return jsonify(data)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+
 @app.route('/health')
 def health_check():
     return 'ok', 200
