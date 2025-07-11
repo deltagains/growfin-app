@@ -10,9 +10,10 @@ from sqlalchemy import create_engine, MetaData, Table, insert, text
 from datetime import datetime
 import re
 import os
-#from flask import escape
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app, origins=["http://82.208.20.218:3001"])
 
 app.secret_key = "secretkey"
 app.config.update(
