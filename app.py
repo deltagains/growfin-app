@@ -669,7 +669,15 @@ def get_option_positions():
             return jsonify([])
 
         response = []
+        total_delta = 0.0
+        total_theta = 0.0
+        total_unrealized = 0.0
+
         for row in rows:
+            delta_val = float(row["delta"]) if row["delta"] else 0.0
+            theta_val = float(row["theta"]) if row["theta"] else 0.0
+            unrealized_val = float(row["unrealizedPnL"]) if row["unrealizedPnL"] else 0.0
+
             response.append({
                 "expiry": row["expirydate"] or "",
                 "type": row["type"],
@@ -678,12 +686,32 @@ def get_option_positions():
                 "buyPrice": float(row["totalbuyavgprice"]) if row["totalbuyavgprice"] else "",
                 "sellPrice": float(row["totalsellavgprice"]) if row["totalsellavgprice"] else "",
                 "lastTradedPrice": float(row["ltp"]) if row["ltp"] else 0.0,
-                "delta": float(row["delta"]) if row["delta"] else 0.0,
-                "theta": float(row["theta"]) if row["theta"] else 0.0,
-                "unrealizedPnL": float(row["unrealizedPnL"]) if row["unrealizedPnL"] else 0.0
+                "delta": delta_val,
+                "theta": theta_val,
+                "unrealizedPnL": unrealized_val
             })
 
+            total_delta += delta_val
+            total_theta += theta_val
+            total_unrealized += unrealized_val
+
+        # Add total row
+        response.append({
+            "expiry": "Net Totals",
+            "type": "",
+            "lots": "",
+            "strikePrice": "",
+            "buyPrice": "",
+            "sellPrice": "",
+            "lastTradedPrice": "",
+            "delta": round(total_delta, 2),
+            "theta": round(total_theta, 2),
+            "unrealizedPnL": round(total_unrealized, 2),
+            "isTotal": True
+        })
+
         return jsonify(response)
+
 
     except Exception as e:
         print(f"Error: {e}")
