@@ -11,6 +11,7 @@ from datetime import datetime
 import re
 import os
 from flask_cors import CORS
+import pytz
 
 app = Flask(__name__)
 CORS(app, origins=["http://82.208.20.218:3001"], supports_credentials=True)
@@ -407,10 +408,25 @@ def stock_holdings():
 @app.route('/insert_positions', methods=['GET'])
 def insert_positions():
     try:
-        broker_module = get_broker_module()
-        return broker_module.insert_positions()
+        # Convert current UTC time to IST
+        ist = pytz.timezone('Asia/Kolkata')
+        now = datetime.now(ist)
+        hour = now.hour
+        minute = now.minute
+        weekday = now.weekday()  # 0=Monday, ..., 6=Sunday
+
+        # Allow only Monday–Friday and time between 09:00 and 15:40 IST
+        if weekday < 5:  # Monday to Friday
+            if (9 <= hour < 15) or (hour == 15 and minute <= 40):
+                broker_module = get_broker_module()
+                return broker_module.insert_positions()
+
+        # Outside trading hours – respond quickly to keep app alive
+        return jsonify({"message": "Outside trading hours. No action taken."}), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/broker_login', methods=['GET'])
 def broker_login():
