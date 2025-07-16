@@ -577,6 +577,7 @@ def get_option_positions():
             unrealized_val = float(row["unrealizedPnL"]) if row["unrealizedPnL"] else 0.0
 
             response.append({
+                "underlying_ltp": float(row["underlying_ltp"]) if row["underlying_ltp"] else 0.0,
                 "expiry": row["expirydate"] or "",
                 "type": row["type"],
                 "lots": int(row["lots"]) if row["lots"] else 0,
