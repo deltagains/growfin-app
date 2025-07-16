@@ -7,7 +7,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from helpers import fetch_table_data, calculate_greeks, sanitize, get_last_expiry_date
 from config import DB_PATH
 from sqlalchemy import create_engine, MetaData, Table, insert, text
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import os
 from flask_cors import CORS
@@ -23,142 +23,16 @@ app.config.update(
     SESSION_COOKIE_SECURE=True,       # True is required when SAMESITE='None' (and you using HTTPS)
 )
 
+def get_last_thursday(year, month):
+    # Start from the last day of the month
+    last_day = datetime(year, month + 1, 1) - timedelta(days=1) if month < 12 else datetime(year + 1, 1, 1) - timedelta(days=1)
 
-def sync_buying_schedule_test():
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
+    # Go backwards until we find a Thursday (weekday 3)
+    while last_day.weekday() != 3:
+        last_day -= timedelta(days=1)
 
-        cursor.execute('''
-            SELECT stock_name, quantity_per_buy, no_of_lots,
-                   target_stock_price, strikeprice, totalsellavgprice, total_stocks
-            FROM buying_schedule
-        ''')
-        schedules = cursor.fetchall()
+    return last_day.strftime('%d%b%Y').upper()
 
-        details = []
-
-        for sched in schedules:
-            stock_name, quantity_per_buy, no_of_lots, target_stock_price, strikeprice, totalsellavgprice, total_stocks = sched
-
-            # Fetch stock data
-            cursor.execute('''
-                SELECT netqty, underlying_ltp, buyPrice
-                FROM stockpositions
-                WHERE symbolname = ?
-                ORDER BY id DESC LIMIT 1
-            ''', (stock_name,))
-            stock_data = cursor.fetchone()
-
-            if not stock_data:
-                details.append({
-                    "stock_name": stock_name,
-                    "status": "skipped",
-                    "reason": "stock not found in stockpositions"
-                })
-                continue
-
-            quantity, underlying_ltp, buyprice = stock_data
-
-            if total_stocks == quantity:
-                details.append({
-                    "stock_name": stock_name,
-                    "status": "skipped",
-                    "reason": "total_stocks equals netqty",
-                    "netqty": quantity,
-                    "total_stocks": total_stocks
-                })
-                continue
-
-            try:
-                if total_stocks is None or no_of_lots in (0, None):
-                    return jsonify({"error": "Missing total_stocks or invalid no_of_lots"}), 400
-
-                lot_size = round(total_stocks / no_of_lots) if no_of_lots > 0 else 0
-                lots = round(quantity / lot_size, 2) if lot_size > 0 else 0
-
-                payload = {
-                    "stock_name": stock_name,
-                    "quantity_per_buy": quantity_per_buy,
-                    "no_of_lots": no_of_lots,
-                    "target_stock_price": target_stock_price,
-                    "strikeprice": strikeprice,
-                    "totalsellavgprice": totalsellavgprice,
-                    "lastTradedPrice": underlying_ltp,
-                    "quantity": quantity,
-                    "buyPrice": buyprice,
-                    "lots": lots
-                }
-
-                api_resp = requests.post(
-                    "http://82.208.20.218:5000/buying-schedule-direct",
-                    json=payload,
-                    timeout=10
-                )
-                api_resp.raise_for_status()
-                api_data = api_resp.json()
-
-                if not isinstance(api_data, list) or not api_data:
-                    details.append({
-                        "stock_name": stock_name,
-                        "status": "error",
-                        "reason": "Invalid or empty response from buying-schedule-direct"
-                    })
-                    continue
-
-                buy_steps_difference = api_data[-1].get('buy_steps_difference')
-                if buy_steps_difference is None:
-                    details.append({
-                        "stock_name": stock_name,
-                        "status": "error",
-                        "reason": "buy_steps_difference missing in response"
-                    })
-                    continue
-
-                alert_value = underlying_ltp + buy_steps_difference
-
-                cursor.execute('''
-                    DELETE FROM alerts
-                    WHERE stockname = ? AND conditions = 'buy_steps_diff_trigger'
-                ''', (stock_name,))
-
-                cursor.execute('''
-                    INSERT INTO alerts (stockname, conditions, value)
-                    VALUES (?, ?, ?)
-                ''', (stock_name, 'buy_steps_diff_trigger', alert_value))
-
-                cursor.execute('''
-                    UPDATE buying_schedule
-                    SET total_stocks = ?, buy_steps_difference = ?
-                    WHERE stock_name = ?
-                ''', (quantity, buy_steps_difference, stock_name))
-
-                details.append({
-                    "stock_name": stock_name,
-                    "status": "success",
-                    "buy_steps_difference": buy_steps_difference,
-                    "alert_value": alert_value
-                })
-
-            except Exception as api_error:
-                details.append({
-                    "stock_name": stock_name,
-                    "status": "error",
-                    "reason": "API call failed",
-                    "error": str(api_error)
-                })
-                continue
-
-        conn.commit()
-        conn.close()
-
-        return jsonify({
-            "message": "Sync completed",
-            "details": details
-        }), 200
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 def get_connection():
     return create_engine("sqlite:///{DB_PATH}")
@@ -283,6 +157,29 @@ def update_expiry_pnl(conn):
 
     conn.commit()
 
+@app.route('/last_thursdays', methods=['GET'])
+def last_thursdays():
+    today = datetime.today()
+    current_month = today.month
+    current_year = today.year
+
+    # Get last Thursday of current month
+    current_month_thursday = get_last_thursday(current_year, current_month)
+
+    # Move to next month
+    next_month = current_month + 1
+    next_year = current_year
+    if next_month > 12:
+        next_month = 1
+        next_year += 1
+
+    # Get last Thursday of next month
+    next_month_thursday = get_last_thursday(next_year, next_month)
+
+    return jsonify({
+        "current_month_expiry": current_month_thursday,
+        "next_month_expiry": next_month_thursday
+    })
 
 @app.route("/compute_pnl", methods=['POST', 'GET'])
 def compute_pnl():
@@ -648,6 +545,7 @@ def get_option_positions():
 
         query = """
             SELECT
+                underlying_ltp,
                 expirydate,
                 optiontype AS type,
                 totallots AS lots,
