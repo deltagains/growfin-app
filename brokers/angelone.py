@@ -198,6 +198,8 @@ def get_order_book():
 def get_strike_data(stockname, expiry, strike, option_type, underlyingLtp):
     try:
         # Step 1: Get Option Token
+        expiry_input = request.args.get("expiry")  # e.g. '31JUL2025'
+        expiry = datetime.strptime(expiry_input, "%d%b%Y").strftime("%Y-%m-%d")
         token_url = f"http://82.208.20.218:5000/get_option_token?name={stockname}&expiry={expiry}&strike={strike}&pe_ce={option_type.lower()}"
         token_res = requests.get(token_url)
         token = token_res.json().get("token")
