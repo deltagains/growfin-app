@@ -195,3 +195,34 @@ def get_order_book():
         return jsonify({"error": str(e)}), 500
 
 
+def get_strike_data(stockname, expiry, strike, option_type, underlyingLtp):
+    try:
+        # Step 1: Get Option Token
+        token_url = f"http://82.208.20.218:5000/get_option_token?name={stockname}&expiry={expiry}&strike={strike}&pe_ce={option_type.lower()}"
+        token_res = requests.get(token_url)
+        token = token_res.json().get("token")
+
+        if not token:
+            return jsonify({"error": "Option token not found"}), 400
+
+        # Step 2: Login and get LTP
+        obj, _ = login()
+        symbol = f"{stockname}{expiry.replace('-', '')}{int(strike)}{option_type.upper()}"
+        ltp_response = obj.ltpData("NFO", symbol, token)
+        ltp_option = float(ltp_response['data']['ltp'])
+
+        # Step 3: Delta/Theta computation
+        days_to_expiry = DaysToExpiry(expiry) if len(expiry) > 0 else 0
+        days_to_expiry = max(float(days_to_expiry), 0.5)
+        delta, theta, implied_vol = calculate_greeks(underlyingLtp, strike, days_to_expiry, ltp_option, option_type)
+        
+        return jsonify({
+            "ltp": ltp,
+            "delta": delta,
+            "theta": theta
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
