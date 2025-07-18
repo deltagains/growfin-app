@@ -294,6 +294,20 @@ def compute_pnl():
 
     return jsonify({"status": "success", "message": "PnL computed and recorded."})
 
+@app.route('/get_strike_data', methods=['GET'])
+def get_strike_data():
+    stockname = request.args.get("stockname")
+    expiry = request.args.get("expiry")            # Format: YYYY-MM-DD
+    strike = float(request.args.get("strikePrice"))
+    option_type = request.args.get("optionType")   # "ce" or "pe"
+    underlyingLtp = float(request.args.get("underlyingLtp"))
+
+    try:
+        broker_module = get_broker_module()
+        return broker_module.get_strike_data(stockname, expiry, strike, option_type, underlyingLtp)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/stock_holdings', methods=['GET'])
 def stock_holdings():
     try:
