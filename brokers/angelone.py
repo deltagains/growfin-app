@@ -205,19 +205,23 @@ def get_strike_data(stockname, expiry, strike, option_type, underlyingLtp):
         if not token:
             return jsonify({"error": "Option token not found"}), 400
 
-        # Step 2: Login and get LTP
+        # Step 2: Format expiry to DDMMMYY
+        expiry_dt = datetime.strptime(expiry, "%d%b%Y")
+        formatted_expiry = expiry_dt.strftime("%d%b%y").upper()  # e.g., 31JUL25
+
+        # Step 3: Login and get LTP
         obj, _ = login()
-        symbol = f"{stockname}{expiry.replace('-', '')}{int(strike)}{option_type.upper()}"
+        symbol = f"{stockname}{formatted_expiry}{int(strike)}{option_type.upper()}"
         ltp_response = obj.ltpData("NFO", symbol, token)
         ltp_option = float(ltp_response['data']['ltp'])
 
-        # Step 3: Delta/Theta computation
+        # Step 4: Delta/Theta computation
         days_to_expiry = DaysToExpiry(expiry) if len(expiry) > 0 else 0
         days_to_expiry = max(float(days_to_expiry), 0.5)
         delta, theta, implied_vol = calculate_greeks(underlyingLtp, strike, days_to_expiry, ltp_option, option_type)
         
         return jsonify({
-            "ltp": ltp,
+            "ltp": ltp_option,
             "delta": delta,
             "theta": theta
         })
