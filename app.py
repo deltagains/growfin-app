@@ -327,8 +327,8 @@ def insert_positions():
         weekday = now.weekday()  # 0=Monday, ..., 6=Sunday
 
         # Allow only Monday–Friday and time between 09:00 and 15:40 IST
-        if weekday < 6:  # Monday to Friday
-            if (8 <= hour < 15) or (hour == 15 and minute <= 40):
+        if weekday < 5:  # Monday to Friday
+            if (9 <= hour < 15) or (hour == 15 and minute <= 40):
                 broker_module = get_broker_module()
                 return broker_module.insert_positions()
 
