@@ -226,7 +226,7 @@ def get_strike_data(stockname, expiry, strike, option_type, underlyingLtp):
         ltp_option = float(ltp_response['data']['ltp'])
 
         # Step 4: Calculate Greeks
-        days_to_expiry = DaysToExpiry(expiry_symbol_format)
+        days_to_expiry = DaysToExpiry1(expiry_symbol_format)
         days_to_expiry = max(float(days_to_expiry), 0.5)
         delta, theta, implied_vol = calculate_greeks(underlyingLtp, strike, days_to_expiry, ltp_option, option_type)
         
