@@ -15,8 +15,9 @@ def DaysToExpiry(expiry):
     diff = expiryday - today
     return diff.days
 
+
 def DaysToExpiry1(expiry):
-    expiry_date = datetime.strptime(expiry, "%Y-%m-%d").date()
+    expiry_date = datetime.strptime(expiry, "%d%b%Y").date()
     today = date.today()
     diff = (expiry_date - today).days
     return diff
