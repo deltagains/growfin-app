@@ -17,10 +17,16 @@ def DaysToExpiry(expiry):
 
 
 def DaysToExpiry1(expiry):
-    expiry_date = datetime.strptime(expiry, "%d%b%Y").date()
     today = date.today()
-    diff = (expiry_date - today).days
-    return diff
+    
+    if len(expiry) == 7:  # e.g., 31JUL25
+        expiry = expiry[:5] + '20' + expiry[5:]  # Convert to 31JUL2025
+
+    try:
+        expiry_date = datetime.strptime(expiry, "%d%b%Y").date()
+        return (expiry_date - today).days
+    except ValueError as e:
+        return {"error": f"Invalid expiry format: {expiry}"}
 
 
 def calculate_greeks(ltp_underlying, strike, days_to_expiry, ltp_option, pe_ce):
