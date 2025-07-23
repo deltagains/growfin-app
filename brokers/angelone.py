@@ -233,7 +233,8 @@ def get_strike_data(stockname, expiry, strike, option_type, underlyingLtp):
         return jsonify({
             "ltp": ltp_option,
             "delta": delta,
-            "theta": theta
+            "theta": theta,
+            "days_to_expiry": days_to_expiry
         })
 
     except Exception as e:
