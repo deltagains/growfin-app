@@ -119,7 +119,9 @@ def insert_positions():
             days_to_expiry = DaysToExpiry(pos.get('expirydate')) if len(pos.get('expirydate')) > 0 else 0
             days_to_expiry = max(float(days_to_expiry), 0.5)
             delta, theta, implied_vol = calculate_greeks(ltp_underlying, strike, days_to_expiry, ltp_option, opt_type)
-
+            delta = delta * totallots
+            theta = theta * totallots
+            
             insert_values.append(tuple(sanitize(v) for v in (
                 ltp_underlying,
                 strike,
