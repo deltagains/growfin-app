@@ -15,6 +15,12 @@ def DaysToExpiry(expiry):
     diff = expiryday - today
     return diff.days
 
+def DaysToExpiry1(expiry):
+    expiry_date = datetime.strptime(expiry, "%Y-%m-%d").date()
+    today = date.today()
+    diff = (expiry_date - today).days
+    return diff
+
 
 def calculate_greeks(ltp_underlying, strike, days_to_expiry, ltp_option, pe_ce):
 
