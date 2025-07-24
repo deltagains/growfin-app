@@ -62,6 +62,35 @@ def calculate_greeks(ltp_underlying, strike, days_to_expiry, ltp_option, pe_ce):
 
     return delta, theta, implied_volatility
 
+def calculate_greeks_premium(ltp_underlying, strike, days_to_expiry, ltp_option, pe_ce, iv=None):
+    try:
+        if pe_ce == "CE":
+            if iv is None:
+                c = mibian.BS([ltp_underlying, strike, 10, days_to_expiry], callPrice=ltp_option)
+                iv = c.impliedVolatility
+            c2 = mibian.BS([ltp_underlying, strike, 10, days_to_expiry], volatility=iv)
+            delta = round(c2.callDelta, 2)
+            theta = round(c2.callTheta, 2)
+            theo_option_price = c2.callPrice
+
+        elif pe_ce == "PE":
+            if iv is None:
+                p = mibian.BS([ltp_underlying, strike, 10, days_to_expiry], putPrice=ltp_option)
+                iv = p.impliedVolatility
+            p2 = mibian.BS([ltp_underlying, strike, 10, days_to_expiry], volatility=iv)
+            delta = round(p2.putDelta, 2)
+            theta = round(p2.putTheta, 2)
+            theo_option_price = p2.putPrice
+
+        else:
+            delta = theta = iv = theo_option_price = 0.0
+
+    except Exception as e:
+        print(f"Error calculating greeks: {str(e)}")
+        delta = theta = iv = theo_option_price = 0.0
+
+    return delta, theta, iv, theo_option_price
+    
 def sanitize(val):
     if isinstance(val, Decimal):
         return float(val)
