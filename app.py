@@ -4,7 +4,7 @@ import importlib
 import sqlite3
 from config import DB_PATH
 from decimal import Decimal, ROUND_HALF_UP
-from helpers import fetch_table_data, calculate_greeks, sanitize, get_last_expiry_date
+from helpers import fetch_table_data, calculate_greeks, calculate_greeks_premium, sanitize, get_last_expiry_date
 from config import DB_PATH
 from sqlalchemy import create_engine, MetaData, Table, insert, text
 from datetime import datetime, timedelta
@@ -1243,6 +1243,131 @@ def get_table_data():
 @app.route('/health')
 def health_check():
     return 'ok', 200
+
+
+@app.route('/simulated_option_positions', methods=['POST', 'GET'])
+def simulated_option_positions():
+    if request.method == 'POST':
+        if request.headers.get('Content-Type') != 'application/json':
+            return jsonify({"error": "Invalid content type"}), 400
+        data = request.get_json()
+        stockname = data.get('stockname')
+        future_price = data.get('future_price', None)
+        future_date = data.get('future_date', None)
+    else:  # GET
+        stockname = request.args.get('stockname')
+        future_price = request.args.get('future_price', None)
+        future_date = request.args.get('future_date', None)
+
+    if not stockname:
+        return jsonify({"error": "Missing stockname parameter"}), 400
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        query = """
+            SELECT
+                underlying_ltp,
+                expirydate,
+                optiontype AS type,
+                totallots AS lots,
+                lotsize,
+                strikeprice,
+                totalbuyavgprice,
+                totalsellavgprice,
+                ltp,
+                delta,
+                theta,
+                unrealised AS unrealizedPnL
+            FROM optionpositions
+            WHERE symbolname = ?
+        """
+        cursor.execute(query, (stockname,))
+        rows = cursor.fetchall()
+        conn.close()
+
+        if not rows:
+            return jsonify([])
+
+        response = []
+        total_delta = total_theta = total_unrealized = 0.0
+
+        for row in rows:
+            expiry_str = row["expirydate"]
+            expiry = datetime.strptime(expiry_str, "%d%b%Y")
+            today = datetime.today()
+
+            if future_date:
+                try:
+                    today = datetime.strptime(future_date, "%d-%m-%Y")
+                except Exception as e:
+                    print(f"Invalid future_date format: {e}")
+                    today = datetime.today()
+
+            days_to_expiry = max((expiry - today).days, 0)
+
+            base_ltp_underlying = float(future_price) if future_price else float(row["underlying_ltp"] or 0)
+            ltp_option = float(row["ltp"] or 0)
+            strike = float(row["strikeprice"] or 0)
+            totalsellavgprice = float(row["totalsellavgprice"] or 0)
+            lots = int(row["lots"] or 0)
+            pe_ce = row["type"]
+
+            # Step 1: Get IV from current market condition
+            _, _, iv, _ = calculate_greeks_premium(
+                float(row["underlying_ltp"] or 0), strike, days_to_expiry, ltp_option, pe_ce
+            )
+
+            # Step 2: Calculate greeks with future inputs
+            delta_val, theta_val, _, new_ltp_option = calculate_greeks_premium(
+                base_ltp_underlying, strike, days_to_expiry, ltp_option, pe_ce, iv
+            )
+
+
+            # Recompute unrealizedPnL
+            unrealizedPnL = (totalsellavgprice - new_ltp_option) * lots * row["lotsize"]
+
+            response.append({
+                "underlying_ltp": base_ltp_underlying,
+                "expiry": expiry_str,
+                "type": pe_ce,
+                "lots": lots,
+                "strikePrice": strike,
+                "buyPrice": float(row["totalbuyavgprice"] or 0),
+                "sellPrice": totalsellavgprice,
+                "lastTradedPrice": round(new_ltp_option, 2),
+                "delta": delta_val,
+                "theta": theta_val,
+                "unrealizedPnL": round(unrealizedPnL, 2)
+
+            })
+
+            total_delta += delta_val
+            total_theta += theta_val
+            total_unrealized += unrealizedPnL
+
+        # Net totals
+        response.append({
+            "expiry": "Net Totals",
+            "type": "",
+            "lots": "",
+            "strikePrice": "",
+            "buyPrice": "",
+            "sellPrice": "",
+            "lastTradedPrice": "",
+            "delta": round(total_delta, 2),
+            "theta": round(total_theta, 2),
+            "unrealizedPnL": round(total_unrealized, 2),
+            "isTotal": True
+        })
+
+        return jsonify(response)
+
+    except Exception as e:
+        import traceback
+        traceback_str = traceback.format_exc()
+        return jsonify({"error": str(e), "trace": traceback_str}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
